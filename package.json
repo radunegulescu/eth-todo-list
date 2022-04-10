@@ -1,7 +1,7 @@
 {
-    "name": "eth-todo-list",
+    "name": "votechain",
     "version": "1.0.0",
-    "description": "Blockchain Todo List Powered By Ethereum",
+    "description": "Blockchain-based voting system",
     "main": "truffle-config.js",
     "directories": {
         "test": "test"
@@ -10,7 +10,7 @@
         "dev": "lite-server",
         "test": "echo \"Error: no test specified\" && sexit 1"
     },
-    "author": "gregory@dappuniversity.com",
+    "author": "",
     "license": "ISC",
     "devDependencies": {
         "bootstrap": "4.1.3",
