@@ -1,6 +1,9 @@
 App = {
     loading: false,
     contracts: {},
+    questions: 0,
+    proposals: [],
+
     load: async () => {
         await App.loadWeb3()
         await App.loadAccount()
@@ -73,7 +76,8 @@ App = {
         $('#account').html(App.account)
 
         // Render Tasks
-        await App.renderTasks()
+        // await App.renderTasks()
+        await App.renderVotes()
 
         App.setLoading(false)
     },
@@ -89,6 +93,132 @@ App = {
         App.setLoading(true)
         const taskId = e.target.name
         await App.todoList.toggleCompleted(taskId)
+        window.location.reload()
+    },
+
+    renderVotes: async () => {
+        const isChairperson = await App.voting.isChairperson()
+        const voteStarted = await App.voting.hasVoteStarted()
+        const voteEnded = await App.voting.hasVoteEnded()
+        console.log('IsChairperson', isChairperson)
+        console.log('voteStarted', voteStarted)
+        console.log('voteEnded',voteEnded)
+        
+        // conditional rendering based on user type and vote status
+        if(isChairperson){
+            if(voteStarted){
+                try{
+                    await App.voting.endVoting()
+                }
+                catch(e){
+                    console.log(e)
+                }
+                const res = await App.voting.getResults()
+                console.log(res)
+            }
+            else if(voteEnded){
+                const res = await App.voting.getResults()
+                console.log(res)
+            }
+            else{
+                // create a vote
+                App.createVote()
+            }
+        }
+        else{
+            if(voteStarted){
+                const message = 'Vote'
+            }
+            else if(voteEnded){
+                const message = 'Get results'
+            }
+            else{
+                const message = 'Voting has not yet began'
+            }
+        }
+    },
+
+    // chairperson create vote form 
+    createVote: () => {
+        let form = document.createElement("form");
+        form.setAttribute('onsubmit', 'App.startVote(); return false;')
+
+        const addQuestionButton = document.createElement('button')
+        addQuestionButton.innerHTML = 'Add question'
+        addQuestionButton.setAttribute('onClick', "App.addQuestion(this); return false;")
+        addQuestionButton.setAttribute('class', 'btn btn-primary')
+
+        const submitButton = document.createElement('button')
+        submitButton.setAttribute('type', "submit")
+        submitButton.setAttribute('class', 'btn btn-success')
+        submitButton.innerHTML = 'Submit'
+
+        form.appendChild(addQuestionButton)
+        form.appendChild(document.createElement('br'))
+        form.appendChild(document.createElement('br'))
+        form.appendChild(submitButton)
+
+        App.addQuestion(addQuestionButton)
+        document.getElementById('content').appendChild(form)
+    },
+
+    addQuestion: (addQuestionButton) => {
+        App.questions += 1
+        let questionWrapper = document.createElement('div')
+
+        let question = document.createElement('input');
+        question.setAttribute('type', 'text')
+        question.setAttribute('placeholder', 'New question')
+        question.setAttribute('class', 'form-control')
+        question.setAttribute('name', 'Question' + App.questions.toString())
+
+        App.proposals.push(0)
+        const addProposalButton = document.createElement('button')
+        addProposalButton.setAttribute('onClick', "App.addProposal(this); return false;")
+        addProposalButton.setAttribute('name', "proposalButtonQuestion" + App.questions.toString())
+        addProposalButton.setAttribute('class', 'btn btn-primary indent')
+        addProposalButton.innerHTML = 'Add Proposal'
+
+        questionWrapper.appendChild(question)
+        questionWrapper.appendChild(addProposalButton)
+        questionWrapper.appendChild(document.createElement('br'))
+        questionWrapper.appendChild(document.createElement('br'))
+        
+        addQuestionButton.parentNode.insertBefore(questionWrapper, addQuestionButton);
+
+        App.addProposal(addProposalButton)
+
+    },
+
+    addProposal: (addProposalButton) => {
+        const question = parseInt(addProposalButton.name.match(/[0-9]+$/)[0]);
+        App.proposals[question-1] += 1
+
+        let proposal = document.createElement('input')
+        proposal.setAttribute('type', 'text')
+        proposal.setAttribute('placeholder', 'New proposal')
+        proposal.setAttribute('class', 'form-control indent')
+        proposal.setAttribute('name', 'Question' + App.questions.toString() + 'Proposal' + App.proposals[question-1].toString() )
+
+        addProposalButton.parentNode.insertBefore(proposal, addProposalButton);
+
+    },
+
+    startVote: async () => {
+        const items = $('form').serializeArray()
+        for (const item of items){
+            if(!item.name.includes('Proposal')){
+                await App.voting.addQuestion(item.value)
+            }
+        }
+        for (const item of items){
+            if(item.name.includes('Proposal')){
+                question = item.name.replace(/\D+/g, ' ').trim().split(' ').map(e => parseInt(e))[0]-1;
+                await App.voting.addProposal(question, item.value)
+            }
+        }
+        await App.voting.startVoting();
+        
         window.location.reload()
     },
 

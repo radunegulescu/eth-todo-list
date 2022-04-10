@@ -80,8 +80,16 @@ contract Voting{
 
     function isChairperson() public view returns(bool) {
         return _chairperson == msg.sender;
-    }
+    }    
     
+    function hasVoteStarted() public view returns(bool) {
+        return _voteStarted;
+    }
+
+    function hasVoteEnded() public view returns(bool) {
+        return _voteEnded;
+    }
+
     function addQuestion(string memory questionTitle) public onlyChairperson voteNotStarted {
         Question storage question = _questions[_questionsCount];
         question.title = questionTitle;
