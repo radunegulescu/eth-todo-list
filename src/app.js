@@ -49,8 +49,14 @@ App = {
         const todoList = await $.getJSON('TodoList.json')
         App.contracts.TodoList = TruffleContract(todoList)
         App.contracts.TodoList.setProvider(App.web3Provider)
-
+        
         App.todoList = await App.contracts.TodoList.deployed()
+
+        const voting = await $.getJSON('Voting.json')
+        App.contracts.Voting = TruffleContract(voting)
+        App.contracts.Voting.setProvider(App.web3Provider)
+        
+        App.voting = await App.contracts.Voting.deployed()
 
     },
 
