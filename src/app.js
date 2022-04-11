@@ -104,21 +104,24 @@ App = {
         console.log('voteStarted', voteStarted)
         console.log('voteEnded',voteEnded)
         
+        body = document.getElementById('content')
         // conditional rendering based on user type and vote status
         if(isChairperson){
-            if(voteStarted){
+            if(voteEnded){
                 try{
-                    await App.voting.endVoting()
+                    App.displayResults()
                 }
                 catch(e){
                     console.log(e)
                 }
-                const res = await App.voting.getResults()
-                console.log(res)
             }
-            else if(voteEnded){
-                const res = await App.voting.getResults()
-                console.log(res)
+            else if(voteStarted){
+                try{
+                    App.displayStopVote()
+                }
+                catch(e){
+                    console.log(e)
+                }
             }
             else{
                 // create a vote
@@ -127,15 +130,74 @@ App = {
         }
         else{
             if(voteStarted){
-                const message = 'Vote'
+                // TODO vote code
             }
             else if(voteEnded){
-                const message = 'Get results'
+                App.displayResults()
             }
             else{
-                const message = 'Voting has not yet began'
+                let p = document.createElement('p')
+                p.innerHTML = 'Voting has not yet started'
             }
         }
+    },
+
+    displayResults: async() =>{
+        const body = document.getElementById('content')
+        questions = []
+        proposals = []
+        votes = []
+        
+        try{
+            const q = (await App.voting.getQuestions()).toString().split('\n')
+            const ans = (await App.voting.getResults()).toString().split('\n')
+        
+            for(let i = 0; i < q.length-1; i++ ){
+                if (i%2 == 0){
+                    questions.push(q[i])
+                }
+                else{
+                    props = q[i].split('\t')
+                    props.pop()
+                    proposals.push(props)
+                }
+            }
+            for(let i = 0; i< ans.length-1; i++){
+                votes_splitted = ans[i].split('\t')
+                votes_splitted.pop()
+                votes.push(votes_splitted)
+            }
+        }
+        catch(e){
+            console.log(e)
+        }
+
+        for (let i = 0; i< questions.length; i++){
+            let pq = document.createElement('h3')
+            pq.innerHTML = 'Question ' + (i+1).toString() + ': '+ questions[i]
+            body.appendChild(pq)               
+            for (let j = 0; j < proposals[i].length; j++ ){
+                let pp = document.createElement('p')
+                pp.innerHTML = 'Proposal ' + (j+1).toString() + ': <br>'+ questions[i] + '<br> Votes: ' + votes[i][j]
+                body.appendChild(pp)
+            }
+            body.appendChild(document.createElement('br'))
+        }   
+
+    },
+
+    displayStopVote: () => {
+        let button = document.createElement('button');
+        button.innerHTML = 'Stop vote'
+        button.setAttribute('onClick', "App.stopVote(); return false;")
+        button.setAttribute('class', 'btn btn-danger')
+        document.getElementById('content').appendChild(button);
+
+    },
+
+    stopVote: async() => {
+        await App.voting.endVoting();
+        window.location.reload()
     },
 
     // chairperson create vote form 

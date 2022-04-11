@@ -124,26 +124,58 @@ contract Voting{
         _voteEnded = true;
     }
 
-    function getQuestions() public view returns (string[][] memory) {
+    function getQuestions() public view returns (string memory) {
         string[][] memory questions = new string[][](_questionsCount);
+        string memory res = '';
+
         for(uint8 i = 0; i < _questionsCount; i++){
             questions[i] = new string[](1 + _questions[i].proposals.length);
             questions[i][0] = _questions[i].title;
+            res = string(abi.encodePacked(res, questions[i][0], '\n'));
             for(uint8 j = 0; j < _questions[i].proposals.length; j++){
                 questions[i][1+j] = _questions[i].proposals[j].name;
+                res = string(abi.encodePacked(res, questions[i][1+j], '\t'));
             }
+            res = string(abi.encodePacked(res, '\n'));
         } 
-        return questions;
+        return res;
     }
 
-    function getResults() public view voteEnded returns (uint8[][] memory) {
+    function getResults() public view voteEnded returns (string memory) {
         uint8[][] memory results = new uint8[][](_questionsCount);
+        string memory res = '';
+
         for(uint8 i = 0; i < _questionsCount; i++){
             results[i] = new uint8[](_questions[i].proposals.length);
             for(uint8 j = 0; j < _questions[i].proposals.length; j++){
                 results[i][j] = _questions[i].proposals[j].voteCount;
+                res = string(abi.encodePacked(res, Voting.uint2str(_questions[i].proposals[j].voteCount), '\t'));
             }
+            res = string(abi.encodePacked(res, '\n'));
         } 
-        return results;
+        return res;
     }
+    
+    function uint2str(uint _i) internal pure returns (string memory _uintAsString) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint j = _i;
+        uint len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint k = len;
+        while (_i != 0) {
+            k = k-1;
+            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            _i /= 10;
+        }
+        return string(bstr);
+    }
+
 }
