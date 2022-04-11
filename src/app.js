@@ -49,12 +49,6 @@ App = {
     },
 
     loadContract: async () => {
-        const todoList = await $.getJSON('TodoList.json')
-        App.contracts.TodoList = TruffleContract(todoList)
-        App.contracts.TodoList.setProvider(App.web3Provider)
-        
-        App.todoList = await App.contracts.TodoList.deployed()
-
         const voting = await $.getJSON('Voting.json')
         App.contracts.Voting = TruffleContract(voting)
         App.contracts.Voting.setProvider(App.web3Provider)
@@ -75,34 +69,17 @@ App = {
         // Render Account
         $('#account').html(App.account)
 
-        // Render Tasks
-        // await App.renderTasks()
-        await App.renderVotes()
+        setTimeout( async () => {
+            await App.renderVotes();   
+            App.setLoading(false);
+        }, 1000)
 
-        App.setLoading(false)
-    },
-
-    createTask: async () => {
-        App.setLoading(true)
-        const content = $('#newTask').val()
-        await App.todoList.createTask(content)
-        window.location.reload()
-    },
-
-    toggleCompleted: async (e) => {
-        App.setLoading(true)
-        const taskId = e.target.name
-        await App.todoList.toggleCompleted(taskId)
-        window.location.reload()
     },
 
     renderVotes: async () => {
         const isChairperson = await App.voting.isChairperson()
         const voteStarted = await App.voting.hasVoteStarted()
         const voteEnded = await App.voting.hasVoteEnded()
-        console.log('IsChairperson', isChairperson)
-        console.log('voteStarted', voteStarted)
-        console.log('voteEnded',voteEnded)
         
         body = document.getElementById('content')
         // conditional rendering based on user type and vote status
@@ -129,17 +106,88 @@ App = {
             }
         }
         else{
-            if(voteStarted){
-                // TODO vote code
-            }
-            else if(voteEnded){
+            if(voteEnded){
                 App.displayResults()
+            }
+            else if(voteStarted){
+                if( await App.voting.hasVoted()){
+                    let p = document.createElement('p')
+                    p.innerHTML = 'You voted!'
+                    body.append(p)
+                }
+                else{
+                    App.vote()
+                }
             }
             else{
                 let p = document.createElement('p')
                 p.innerHTML = 'Voting has not yet started'
+                body.append(p)
             }
         }
+    },
+
+    vote: async() => {
+        const body = document.getElementById('content')
+        questions = []
+        proposals = []
+        try{
+            const q = (await App.voting.getQuestions()).toString().split('\n')
+            for(let i = 0; i < q.length-1; i++ ){
+                if (i%2 == 0){
+                    questions.push(q[i])
+                }
+                else{
+                    props = q[i].split('\t')
+                    props.pop()
+                    proposals.push(props)
+                }
+            }
+        }
+        catch(e){
+            console.log(e)
+        }
+
+        let form = document.createElement('form')
+        form.setAttribute('onsubmit', 'App.submitVote(); return false;')
+
+        for (let i = 0; i < questions.length; i++ ){
+            let pq = document.createElement('h5')
+            pq.innerHTML = 'Question ' + (i+1).toString() + ': '+ questions[i]
+            form.appendChild(pq)
+            
+            for (let j = 0; j < proposals[i].length; j++ ){
+                let choice = document.createElement('input')
+                choice.setAttribute('type','radio')
+                choice.setAttribute('name','Q'+i.toString())
+                choice.setAttribute('value',j.toString())
+                choice.setAttribute('style', "display: inline-block")
+
+                let text = document.createElement('p')
+                text.innerHTML = proposals[i][j] 
+                text.setAttribute('style', "display: inline-block")
+                form.appendChild(choice)
+                form.appendChild(text)
+                form.appendChild(document.createElement('br'))
+            }
+        }
+        const submitButton = document.createElement('button')
+        submitButton.setAttribute('type', "submit")
+        submitButton.setAttribute('class', 'btn btn-success')
+        submitButton.innerHTML = 'Submit'
+
+        form.appendChild(submitButton)
+        body.appendChild(form)
+    },
+
+    submitVote: async() =>{
+        const items = $('form').serializeArray()
+        res = []
+        for (const item of items){
+            res.push(parseInt(item.value))
+        }
+        await App.voting.vote(res)
+        window.location.reload()
     },
 
     displayResults: async() =>{
@@ -178,7 +226,7 @@ App = {
             body.appendChild(pq)               
             for (let j = 0; j < proposals[i].length; j++ ){
                 let pp = document.createElement('p')
-                pp.innerHTML = 'Proposal ' + (j+1).toString() + ': <br>'+ questions[i] + '<br> Votes: ' + votes[i][j]
+                pp.innerHTML = 'Proposal ' + (j+1).toString() + ': <br>'+ proposals[i][j] + '<br> Votes: ' + votes[i][j]
                 body.appendChild(pp)
             }
             body.appendChild(document.createElement('br'))
@@ -282,39 +330,6 @@ App = {
         await App.voting.startVoting();
         
         window.location.reload()
-    },
-
-    renderTasks: async () => {
-        // Load the total task count from the blockchain
-        const taskCount = await App.todoList.taskCount()
-        const $taskTemplate = $('.taskTemplate')
-        // Render out each task with a new task template
-
-        for (var i = 1; i <= taskCount; i++) {
-            // Fetch the task data from the blockchain
-            const task = await App.todoList.tasks(i)
-            const taskId = task[0].toNumber()
-            const taskContent = task[1]
-            const taskCompleted = task[2]
-
-            // Create the html for the task
-            const $newTaskTemplate = $taskTemplate.clone()
-            $newTaskTemplate.find('.content').html(taskContent)
-            $newTaskTemplate.find('input')
-                .prop('name', taskId)
-                .prop('checked', taskCompleted)
-                .on('click', App.toggleCompleted)
-
-            // Put the task in the correct list
-            if (taskCompleted) {
-                $('#completedTaskList').append($newTaskTemplate)
-            } else {
-                $('#taskList').append($newTaskTemplate)
-            }
-
-            // Show the task
-            $newTaskTemplate.show()
-        }
     },
 
     setLoading: (boolean) => {
